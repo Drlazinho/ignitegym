@@ -7,58 +7,78 @@ import {
   Heading,
   ScrollView,
   Text,
+  useToast,
   VStack,
 } from "@gluestack-ui/themed";
 import { Alert, TouchableOpacity } from "react-native";
-import * as ImagePicker from "expo-image-picker"
-import * as FileSystem from 'expo-file-system'
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
-import { useState } from 'react'
+import { useState } from "react";
+import { ToastMessage } from "@components/ToastMessage";
 
 export function Profile() {
   const [userPhoto, setUserPhoto] = useState(
-    "https://github.com/drlazinho.png",
-  )
+    "https://github.com/drlazinho.png"
+  );
 
-   async function handleUserPhotoSelect() {
+  const toast = useToast()
+
+  async function handleUserPhotoSelect() {
     try {
       const photoSelected = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         quality: 1,
         aspect: [4, 4],
         allowsEditing: true,
-      })
+      });
 
       if (photoSelected.canceled) {
-        return
+        return;
       }
 
-      const photoUri = photoSelected.assets[0].uri
+      const photoUri = photoSelected.assets[0].uri;
 
       if (photoUri) {
         const photoInfo = (await FileSystem.getInfoAsync(photoUri)) as {
-          size: number
-        }
+          size: number;
+        };
 
         if (photoInfo.size && photoInfo.size / 1024 / 1024 > 5) {
-          
-          return Alert.alert(
-            'Essa imagem é muito grande. Escolha uma de até 5MB',
-          )
+          return toast.show({
+            render: ({ id }) => (
+              <ToastMessage
+                id={id}
+                action='error'
+                title='Essa imagem é muito grande. Escolha uma de até 5MB.'
+                onClose={() => toast.close(id)}
+              />
+            )
+          })
         }
 
-        setUserPhoto(photoSelected.assets[0].uri)
+        setUserPhoto(photoSelected.assets[0].uri);
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   }
 
   return (
     <VStack flex={1}>
+      <ToastMessage
+        id="1"
+        title="Mensagem de exemplo"
+        description="asdasdakjsd asdajksdbasjdhasd"
+        action="success"
+        onClose={() => {}}
+      />
+
       <ScreenHeader title="Perfil" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 36, paddingInline: 20 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 36, paddingInline: 20 }}
+      >
         <Center mt="$6" px="$10">
           <UserPhoto
             source={{ uri: userPhoto }}
