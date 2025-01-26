@@ -9,6 +9,8 @@ import {
   Text,
   VStack,
 } from "@gluestack-ui/themed";
+import { useNavigation } from "@react-navigation/native";
+import { AppNavigatorRoutesProps } from "@routes/app.routes";
 import { useState } from "react";
 
 export function Home() {
@@ -29,6 +31,12 @@ export function Home() {
   ]);
   const [groupSelected, setGroupSelected] = useState("costas");
 
+  const navigation = useNavigation<AppNavigatorRoutesProps>();
+
+  function handleOpenExerciseDetails() {
+    navigation.navigate("exercise");
+  }
+
   return (
     <VStack flex={1}>
       <HomeHeader />
@@ -39,7 +47,9 @@ export function Home() {
         renderItem={({ item }) => (
           <Group
             name={item}
-            isActive={groupSelected.toLocaleLowerCase() === item.toLocaleLowerCase()}
+            isActive={
+              groupSelected.toLocaleLowerCase() === item.toLocaleLowerCase()
+            }
             onPress={() => setGroupSelected(item)}
           />
         )}
@@ -62,7 +72,9 @@ export function Home() {
         <FlatList
           data={exercises}
           keyExtractor={(item) => item}
-          renderItem={({ item }) => <ExerciseCard />}
+          renderItem={() => (
+            <ExerciseCard onPress={handleOpenExerciseDetails} />
+          )}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         />
