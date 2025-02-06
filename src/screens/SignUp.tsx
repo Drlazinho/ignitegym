@@ -4,6 +4,10 @@ import {
   Image,
   ScrollView,
   Text,
+  Toast,
+  ToastDescription,
+  ToastTitle,
+  useToast,
   VStack,
 } from "@gluestack-ui/themed";
 import BackgroundImg from "@assets/background.png";
@@ -13,8 +17,12 @@ import { Button } from "@components/Button";
 import { useNavigation } from "@react-navigation/native";
 import { AuthNavigatorRoutesProps } from "@routes/auth.routes";
 import { Controller, useForm } from "react-hook-form";
-import * as yup from 'yup';
-import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from "yup";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { api } from "../service/api";
+import axios from "axios";
+import { Alert } from "react-native";
+import { AppError } from '@utils/AppError'
 
 type FormDataProps = {
   name: string;
@@ -24,17 +32,21 @@ type FormDataProps = {
 };
 
 const signUpSchema = yup.object({
-  name: yup.string().required('Informe o nome'),
-  email: yup.string().required('Informe o e-mail').email('E-mail inválido'),
-  password: yup.string().required('Informe a senha').min(6, 'A senha deve ter pelo menos 6 dígitos.'),
+  name: yup.string().required("Informe o nome"),
+  email: yup.string().required("Informe o e-mail").email("E-mail inválido"),
+  password: yup
+    .string()
+    .required("Informe a senha")
+    .min(6, "A senha deve ter pelo menos 6 dígitos."),
   password_confirm: yup
     .string()
-    .required('Confirme a senha')
-    .oneOf([yup.ref('password'), ''], 'A confirmação da senha não confere.'),
+    .required("Confirme a senha")
+    .oneOf([yup.ref("password"), ""], "A confirmação da senha não confere."),
 });
 
 export function SignUp() {
   const navigation = useNavigation<AuthNavigatorRoutesProps>();
+  const toast = useToast();
 
   function handleNewAccount() {
     navigation.navigate("signIn");
@@ -45,15 +57,37 @@ export function SignUp() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormDataProps>({
-    resolver: yupResolver(signUpSchema)
+    resolver: yupResolver(signUpSchema),
   });
 
-  function handleSignUp({
-    name,
-    email,
-    password,
-    password_confirm,
-  }: FormDataProps) {}
+  async function handleSignUp({ name, email, password }: FormDataProps) {
+    try {
+      const response = await api.post("/users", { name, email, password });
+      console.log(response.data);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const isAppError = error instanceof AppError;
+    
+        const title = isAppError
+          ? error.message
+          : "Não foi possível criar a conta. Tente novamente mais tarde";
+    
+          toast.show({
+            placement: "bottom",
+            render: ({ id }) => {
+              const toastId = "toast-" + id
+              return (
+                <Toast nativeID={toastId} action="error" variant="solid">
+                    <ToastDescription>
+                      {title}
+                    </ToastDescription>
+                </Toast>
+              )
+            },
+          })
+      }
+    }
+  }
 
   return (
     <ScrollView

@@ -40,10 +40,10 @@ export function Input({
       >
         <InputField
           px="$4"
-          bg="$gray700"
+          bg="$trueGray700"
           color="$white"
           fontFamily="$body"
-          placeholderTextColor="$gray300"
+          placeholderTextColor="$trueGray300"
           {...props}
         />
       </GluestackInput>
