@@ -24,11 +24,13 @@ import { AppError } from "@utils/AppError";
 import { api } from "../service/api";
 import { ExerciseDTO } from "@dtos/ExerciseDTO";
 import { useEffect, useState } from "react";
+import { Loading } from '@components/Loading'
 
 type RouteParamsProps = {
   exerciseId: string;
 };
 export function Exercise() {
+  const [isLoading, setIsLoading] = useState(true);
   const [exercise, setExercise] = useState<ExerciseDTO>({} as ExerciseDTO);
   const navigation = useNavigation<AppNavigatorRoutesProps>();
   const toast = useToast();
@@ -43,6 +45,7 @@ export function Exercise() {
 
   async function fetchExerciseDetails() {
     try {
+      setIsLoading(true);
       const response = await api.get(`/exercises/${exerciseId}`);
 
       setExercise(response.data);
@@ -63,6 +66,8 @@ export function Exercise() {
           );
         },
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -102,7 +107,8 @@ export function Exercise() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <VStack p="$8">
+        {
+          isLoading ? <Loading /> :  <VStack p="$8">
           <Image
             source={{
               uri: `${api.defaults.baseURL}/exercise/demo/${exercise?.demo}`,
@@ -137,6 +143,8 @@ export function Exercise() {
             <Button title="Marcar como realizado" />
           </Box>
         </VStack>
+        }
+       
       </ScrollView>
     </VStack>
   );
