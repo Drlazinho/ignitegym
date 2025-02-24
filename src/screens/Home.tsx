@@ -7,35 +7,90 @@ import {
   Heading,
   HStack,
   Text,
+  Toast,
+  ToastDescription,
+  useToast,
   VStack,
 } from "@gluestack-ui/themed";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { AppNavigatorRoutesProps } from "@routes/app.routes";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../service/api";
+import { AppError } from "@utils/AppError";
+import { ExerciseDTO } from '@dtos/ExerciseDTO'
 
 export function Home() {
-  const [exercises, setExercises] = useState([
-    "Puxada frontal",
-    "Remada curvada",
-    "Remada unilateral",
-    "Levantamento terra",
-    "Levantamento terra",
-    "Levantamento terra",
-    "Levantamento terra",
-  ]);
-  const [groups, setGroups] = useState([
-    "Costas",
-    "Bíceps",
-    "Tríceps",
-    "Ombro",
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [groups, setGroups] = useState<String[]>([]);
+  const [exercises, setExercises] = useState<ExerciseDTO[]>([]);
   const [groupSelected, setGroupSelected] = useState("costas");
+
+  const toast = useToast();
 
   const navigation = useNavigation<AppNavigatorRoutesProps>();
 
-  function handleOpenExerciseDetails() {
-    navigation.navigate("exercise");
+  function handleOpenExerciseDetails(exerciseId: string) {
+    navigation.navigate("exercise", { exerciseId });
   }
+
+  async function fetchGroups() {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/groups')
+      setGroups(response.data)
+    } catch (error) {
+      const isAppError = error instanceof AppError;
+      const title = isAppError
+        ? error.message
+        : "Não foi possível carregar os grupos musculares";
+
+      toast.show({
+        placement: "bottom",
+        render: ({ id }) => {
+          const toastId = "toast-" + id;
+          return (
+            <Toast nativeID={toastId} action="error" variant="solid">
+              <ToastDescription>{title}</ToastDescription>
+            </Toast>
+          );
+        },
+      });
+    } finally{
+      setIsLoading(false);
+    }
+  }
+
+  async function fetchExerciseByGroup() {
+    try {
+      const response = await api.get(`/exercises/bygroup/${groupSelected}`);
+      setExercises(response.data)
+    } catch (error) {
+      const isAppError = error instanceof AppError;
+      const title = isAppError
+        ? error.message
+        : "Não foi possível carregar os exercícios musculares";
+
+      toast.show({
+        placement: "bottom",
+        render: ({ id }) => {
+          const toastId = "toast-" + id;
+          return (
+            <Toast nativeID={toastId} action="error" variant="solid">
+              <ToastDescription>{title}</ToastDescription>
+            </Toast>
+          );
+        },
+      });
+    }
+  }
+
+  useEffect(() => {
+    fetchGroups();
+  } ,[])
+
+  useFocusEffect(useCallback(()=>{
+    fetchExerciseByGroup()
+  },[groupSelected]))
 
   return (
     <VStack flex={1}>
@@ -45,13 +100,11 @@ export function Home() {
         data={groups}
         keyExtractor={(item) => item}
         renderItem={({ item }) => (
-          <Group
-            name={item}
-            isActive={
-              groupSelected.toLocaleLowerCase() === item.toLocaleLowerCase()
-            }
-            onPress={() => setGroupSelected(item)}
-          />
+          <Group 
+          name={item}
+          isActive={groupSelected.toLocaleUpperCase() === item.toLocaleUpperCase()}
+          onPress={() => setGroupSelected(item)}
+        />
         )}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -69,15 +122,20 @@ export function Home() {
           </Text>
         </HStack>
 
-        <FlatList
-          data={exercises}
-          keyExtractor={(item) => item}
-          renderItem={() => (
-            <ExerciseCard onPress={handleOpenExerciseDetails} />
-          )}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
+        <FlatList 
+            data={exercises}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <ExerciseCard 
+                onPress={() => handleOpenExerciseDetails(item.id)}
+                data={item}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+            _contentContainerStyle={{
+              paddingBottom: 20
+            }}
+          />
       </VStack>
     </VStack>
   );
