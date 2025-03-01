@@ -7,6 +7,8 @@ import {
   Heading,
   ScrollView,
   Text,
+  Toast,
+  ToastDescription,
   useToast,
   VStack,
 } from "@gluestack-ui/themed";
@@ -15,11 +17,13 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { Controller, useForm } from "react-hook-form";
 import { useAuth } from "@hooks/useAuth";
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 
 import { useState } from "react";
 import { ToastMessage } from "@components/ToastMessage";
+import { api } from "../service/api";
+import { AppError } from "@utils/AppError";
 
 type FormDataProps = {
   name: string;
@@ -30,47 +34,92 @@ type FormDataProps = {
 };
 
 const profileSchema = yup.object({
-  name: yup
-    .string()
-    .required('Informe o nome'),
+  name: yup.string().required("Informe o nome"),
   password: yup
     .string()
-    .min(6, 'A senha deve ter pelo menos 6 dígitos.')
+    .min(6, "A senha deve ter pelo menos 6 dígitos.")
     .nullable()
-    .transform((value) => !!value ? value : null),
+    .transform((value) => (!!value ? value : null)),
   confirm_password: yup
     .string()
     .nullable()
-    .transform((value) => !!value ? value : null)
-    .oneOf([yup.ref('password'), null], 'A confirmação de senha não confere.')
-    .when('password', {
-      is: (Field: any) => Field, 
+    .transform((value) => (!!value ? value : null))
+    .oneOf([yup.ref("password"), null], "A confirmação de senha não confere.")
+    .when("password", {
+      is: (Field: any) => Field,
       then: yup
         .string()
         .nullable()
-        .required('Informe a confirmação da senha.')
-        .transform((value) => !!value ? value : null)
+        .required("Informe a confirmação da senha.")
+        .transform((value) => (!!value ? value : null)),
     }),
-})
+});
 
 export function Profile() {
   const [userPhoto, setUserPhoto] = useState(
     "https://github.com/drlazinho.png"
   );
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
 
-  const { control, handleSubmit, formState: { errors } } = useForm<FormDataProps>({ 
-    defaultValues: { 
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormDataProps>({
+    defaultValues: {
       name: user.name,
-      email: user.email
+      email: user.email,
     },
-    resolver: yupResolver(profileSchema) 
+    resolver: yupResolver(profileSchema),
   });
+
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const toast = useToast();
 
   async function handleProfileUpdate(data: FormDataProps) {
-    console.log(data);
+    try {
+      setIsUpdating(true);
+      const userUpdated = user;
+      userUpdated.name = data.name;
+
+      await api.put("/users", data);
+
+      await updateUserProfile(userUpdated);
+
+      toast.show({
+        placement: "top",
+        render: ({ id }) => {
+          const toastId = "toast-" + id;
+          return (
+            <Toast nativeID={toastId} action="success" variant="solid">
+              <ToastDescription>
+                Perfil atualizado com sucesso!
+              </ToastDescription>
+            </Toast>
+          );
+        },
+      });
+    } catch (error) {
+      const isAppError = error instanceof AppError;
+      const title = isAppError
+        ? error.message
+        : "Não foi possível atualizar os dados. Tente novamente mais tarde.";
+
+      toast.show({
+        placement: "top",
+        render: ({ id }) => {
+          const toastId = "toast-" + id;
+          return (
+            <Toast nativeID={toastId} action="error" variant="solid">
+              <ToastDescription>{title}</ToastDescription>
+            </Toast>
+          );
+        },
+      });
+    } finally {
+      setIsUpdating(false);
+    }
   }
 
   async function handleUserPhotoSelect() {
@@ -98,12 +147,12 @@ export function Profile() {
             render: ({ id }) => (
               <ToastMessage
                 id={id}
-                action="error"
-                title="Essa imagem é muito grande. Escolha uma de até 5MB."
+                action='error'
+                title='Essa imagem é muito grande. Escolha uma de até 5MB.'
                 onClose={() => toast.close(id)}
               />
-            ),
-          });
+            )
+          })
         }
 
         setUserPhoto(photoSelected.assets[0].uri);
@@ -115,14 +164,6 @@ export function Profile() {
 
   return (
     <VStack flex={1}>
-      {/* <ToastMessage
-        id="1"
-        title="Mensagem de exemplo"
-        description="asdasdakjsd asdajksdbasjdhasd"
-        action="success"
-        onClose={() => {}}
-      /> */}
-
       <ScreenHeader title="Perfil" />
 
       <ScrollView
@@ -225,6 +266,7 @@ export function Profile() {
           <Button
             title="Atualizar"
             onPress={handleSubmit(handleProfileUpdate)}
+            isLoading={isUpdating}
           />
         </Center>
       </ScrollView>
